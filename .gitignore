@@ -1,0 +1,14 @@
+.env
+.env.local
+.env.*.local
+outputs/
+data/
+evals/
+references/
+scripts/import-youmind-cases.sh
+scripts/recommend-prompts.sh
+scripts/search-prompts.sh
+*_response.json
+*_images.tsv
+WORKFLOW_TEST_RESULTS.md
+.DS_Store
