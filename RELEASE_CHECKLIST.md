@@ -39,7 +39,7 @@ bash scripts/resolve-image-spec.sh --query "帮我做一个不知道用途的漂
 bash scripts/check-config.sh
 ```
 
-- Review `README.md`, `README.zh.md`, `SKILL.md`, `.env.example`, and `references/integration-contract.md`.
+- Review `README.md`, `README.en.md`, `SKILL.md`, `.env.example`, and `references/integration-contract.md`.
 - Run a sensitive-data scan over all tracked and publish-candidate files.
 
 ## Recommended

@@ -2,7 +2,7 @@
 
 ## Completed
 
-- Skill structure is complete for the simplified release: `SKILL.md`, `README.md`, `README.zh.md`, `LICENSE`, scripts, references, and release checklist.
+- Skill structure is complete for the simplified release: `SKILL.md`, `README.md`, `README.en.md`, `LICENSE`, scripts, references, and release checklist.
 - The skill is now a reusable image generation component that other skills can call instead of re-implementing provider routing.
 - Direct mode sends the user's prompt directly to the model.
 - Pro mode is simplified to missing-information guidance only.
