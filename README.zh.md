@@ -1,6 +1,6 @@
 # AI Image Generator
 
-把用户输入的生图提示词直接交给配置好的图片 API。Pro 模式只做基础缺项检查。
+把用户输入的生图提示词直接交给配置好的图片 API。其他 skills 可以把它当作通用生图组件调用。
 
 中文 | [English](./README.md)
 
@@ -10,11 +10,17 @@ AI Image Generator 是一个「单 skill 单仓库」的远程生图工具。
 
 - **Direct 模式**：把用户输入的提示词或关键词直接交给模型。
 - **Pro 模式**：检查提示词是否缺少基础生成信息，向用户追问缺项，然后把用户确认后的提示词交给模型。
+- **通用组件**：其他 skills 可以调用同一个脚本，并拿到稳定 JSON 结果。
+- **尺寸解析**：用户没指定尺寸时，可以根据常见平台关键词补齐 API 尺寸/比例参数。
+- 支持通过云雾等 OpenAI 兼容代理调用 GPT-image2。
 - 支持 Nano Banana 兼容接口。
+- 支持 SiliconFlow Qwen Image。
 - 支持 OpenAI GPT Image 兼容接口。
 - 支持带参考图的 image-to-image。
 
 这个 skill 不会自动改写提示词，不会仿写案例，也不会做案例库优化。
+
+尺寸解析不是 prompt 改写，只会补 API 参数。
 
 ## 适合谁？
 
@@ -78,8 +84,18 @@ cp .env.example .env
 Nano Banana 兼容接口：
 
 ```bash
+IMAGE_PROVIDER="auto"
+
+GPT_IMAGE2_BASE_URL="https://yunwu.ai"
+GPT_IMAGE2_MODEL="gpt-image-2-all"
+GPT_IMAGE2_API_KEY="your_api_key_here"
+
 NANO_BANANA_API_URL="https://your-provider.example/v1beta/models/your-model:generateContent"
 NANO_BANANA_API_KEY="your_api_key_here"
+
+SILICONFLOW_BASE_URL="https://api.siliconflow.cn/v1/images/generations"
+SILICONFLOW_MODEL="Qwen/Qwen-Image"
+SILICONFLOW_API_KEY="your_api_key_here"
 ```
 
 OpenAI GPT Image 兼容接口：
@@ -99,10 +115,35 @@ Direct 直接生成：
 
 ```bash
 bash scripts/generate-image.sh \
-  --provider nano-banana \
+  --provider auto \
   --prompt "香奈儿七夕香水礼盒海报，保留品牌logo，高级法式风格" \
   --aspect-ratio 3:4 \
   --output-dir ./outputs
+```
+
+其他 skill 调用这个通用组件：
+
+```bash
+bash /absolute/path/to/ai-image-generator/scripts/generate-image.sh \
+  --provider auto \
+  --prompt "$USER_PROMPT" \
+  --output-dir "$OUTPUT_DIR" \
+  --output-prefix "$ASSET_ID"
+```
+
+只解析尺寸，不调用生图 API：
+
+```bash
+bash scripts/resolve-image-spec.sh \
+  --query "生成一张微信公众号头图，主题是 AI 生图模型配置"
+```
+
+尺寸优先级：
+
+```text
+用户显式指定尺寸/比例
+匹配平台/用途规格表
+provider 或脚本默认值
 ```
 
 Pro 缺项检查：
@@ -123,11 +164,35 @@ bash scripts/generate-image.sh \
   --output-dir ./outputs
 ```
 
+支持的 provider：
+
+```text
+auto
+gpt-image2
+nano-banana
+siliconflow-qwen-image
+openai
+```
+
 检查配置：
 
 ```bash
 bash scripts/check-config.sh
 ```
+
+## 常用尺寸默认值
+
+机器可读规格表在 [`references/platform-image-specs.json`](./references/platform-image-specs.json)。
+
+示例：
+
+- 微信公众号头图：`2.35:1`，`1800x766`；provider 不支持时用 `21:9`。
+- 微信公众号正文配图：`16:9`，`1920x1080`。
+- 小红书封面/配图：`3:4`，`1080x1440`。
+- 抖音封面：`9:16`，`1080x1920`。
+- PPT 封面：`16:9`，`1920x1080`。
+- 手机壁纸：`9:16`，`1080x1920`。
+- 电商主图和头像：`1:1`。
 
 ## 依赖
 
@@ -161,6 +226,7 @@ brew install jq
 ├── README.zh.md
 ├── LICENSE
 ├── .env.example
+├── references/
 ├── scripts/
 ├── ACCEPTANCE.md
 ├── CHANGELOG.md

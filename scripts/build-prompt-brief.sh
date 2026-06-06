@@ -2,6 +2,7 @@
 set -euo pipefail
 
 QUERY=""
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 usage() {
   cat <<'EOF'
@@ -54,27 +55,48 @@ contains_any() {
 image_type="general-image"
 aspect_ratio=""
 provider_ratio_note=""
+spec_source="not_checked"
 
-if contains_any "$lower_query" "公众号" "微信头图" "wechat" "首图"; then
+if [[ -x "${SCRIPT_DIR}/resolve-image-spec.sh" ]]; then
+  spec_json="$(bash "${SCRIPT_DIR}/resolve-image-spec.sh" --query "$QUERY")"
+  spec_source="$(jq -r '.source // "not_found"' <<<"$spec_json")"
+  resolved_asset_type="$(jq -r '.asset_type // empty' <<<"$spec_json")"
+  resolved_ratio="$(jq -r '.aspect_ratio // empty' <<<"$spec_json")"
+  resolved_provider_ratio="$(jq -r '.provider_aspect_ratio // empty' <<<"$spec_json")"
+  resolved_note="$(jq -r '.notes // empty' <<<"$spec_json")"
+  if [[ -n "$resolved_asset_type" ]]; then
+    image_type="$resolved_asset_type"
+  fi
+  if [[ -n "$resolved_ratio" ]]; then
+    aspect_ratio="$resolved_ratio"
+  fi
+  if [[ -n "$resolved_provider_ratio" && "$resolved_provider_ratio" != "$resolved_ratio" ]]; then
+    provider_ratio_note="Provider ratio: ${resolved_provider_ratio}. ${resolved_note}"
+  elif [[ -n "$resolved_note" ]]; then
+    provider_ratio_note="$resolved_note"
+  fi
+fi
+
+if [[ "$image_type" == "general-image" ]] && contains_any "$lower_query" "公众号" "微信头图" "wechat" "首图"; then
   image_type="wechat-cover"
   aspect_ratio="2.35:1"
   provider_ratio_note="Nano Banana uses 21:9 as the closest supported ratio."
-elif contains_any "$lower_query" "小红书" "xiaohongshu"; then
+elif [[ "$image_type" == "general-image" ]] && contains_any "$lower_query" "小红书" "xiaohongshu"; then
   image_type="xiaohongshu-cover"
   aspect_ratio="3:4"
-elif contains_any "$lower_query" "电商" "主图" "ecommerce" "商品"; then
+elif [[ "$image_type" == "general-image" ]] && contains_any "$lower_query" "电商" "主图" "ecommerce" "商品"; then
   image_type="ecommerce-main-image"
   aspect_ratio="1:1"
-elif contains_any "$lower_query" "头像" "avatar" "profile"; then
+elif [[ "$image_type" == "general-image" ]] && contains_any "$lower_query" "头像" "avatar" "profile"; then
   image_type="social-avatar"
   aspect_ratio="1:1"
-elif contains_any "$lower_query" "ppt" "课程封面" "presentation" "course cover"; then
+elif [[ "$image_type" == "general-image" ]] && contains_any "$lower_query" "ppt" "课程封面" "presentation" "course cover"; then
   image_type="ppt-cover"
   aspect_ratio="16:9"
-elif contains_any "$lower_query" "手机壁纸" "wallpaper" "竖屏"; then
+elif [[ "$image_type" == "general-image" ]] && contains_any "$lower_query" "手机壁纸" "wallpaper" "竖屏"; then
   image_type="mobile-wallpaper"
   aspect_ratio="9:16"
-elif contains_any "$lower_query" "海报" "poster" "flyer"; then
+elif [[ "$image_type" == "general-image" ]] && contains_any "$lower_query" "海报" "poster" "flyer"; then
   image_type="poster-flyer"
   aspect_ratio="3:4"
 fi
@@ -158,6 +180,7 @@ jq -n \
   --arg image_type "$image_type" \
   --arg aspect_ratio "$aspect_ratio" \
   --arg provider_ratio_note "$provider_ratio_note" \
+  --arg spec_source "$spec_source" \
   --arg has_subject "$has_subject" \
   --arg has_purpose "$has_purpose" \
   --arg has_output_type "$has_output_type" \
@@ -175,6 +198,7 @@ jq -n \
   },
   inferred: {
     image_type: $image_type,
+    image_spec_source: $spec_source,
     default_aspect_ratio: (if $aspect_ratio == "" then null else $aspect_ratio end),
     provider_ratio_note: (if $provider_ratio_note == "" then null else $provider_ratio_note end)
   },

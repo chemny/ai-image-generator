@@ -1,6 +1,6 @@
 # AI Image Generator
 
-Send user image prompts directly to a configured image API. Pro mode only checks for missing prompt basics.
+Send user image prompts directly to a configured image API. Other skills can use this as a shared image generation component.
 
 [中文](./README.zh.md) | English
 
@@ -10,11 +10,17 @@ AI Image Generator is a single-skill repository for remote image generation.
 
 - **Direct mode**: send the user's prompt or keywords directly to the model.
 - **Pro mode**: check whether the prompt has the basic elements needed for generation, ask for missing information, then send the user-approved prompt to the model.
+- **Reusable component**: other skills can call one script and receive a stable JSON result.
+- **Size resolver**: if the user does not specify dimensions, known platform keywords can fill API size/ratio parameters.
+- Supports GPT-image2 through OpenAI-compatible proxies such as Yunwu.
 - Supports Nano Banana-compatible APIs.
+- Supports SiliconFlow Qwen Image.
 - Supports OpenAI GPT Image-compatible APIs.
 - Supports image-to-image with reference images.
 
 The skill does not rewrite prompts, imitate prompt examples, or run case-library optimization.
+
+Size resolution does not rewrite prompts. It only fills API parameters.
 
 ## Who Is This For?
 
@@ -78,8 +84,18 @@ cp .env.example .env
 Nano Banana-compatible provider:
 
 ```bash
+IMAGE_PROVIDER="auto"
+
+GPT_IMAGE2_BASE_URL="https://yunwu.ai"
+GPT_IMAGE2_MODEL="gpt-image-2-all"
+GPT_IMAGE2_API_KEY="your_api_key_here"
+
 NANO_BANANA_API_URL="https://your-provider.example/v1beta/models/your-model:generateContent"
 NANO_BANANA_API_KEY="your_api_key_here"
+
+SILICONFLOW_BASE_URL="https://api.siliconflow.cn/v1/images/generations"
+SILICONFLOW_MODEL="Qwen/Qwen-Image"
+SILICONFLOW_API_KEY="your_api_key_here"
 ```
 
 OpenAI GPT Image-compatible provider:
@@ -99,10 +115,35 @@ Direct generation:
 
 ```bash
 bash scripts/generate-image.sh \
-  --provider nano-banana \
+  --provider auto \
   --prompt "Chanel Qixi perfume gift box poster, keep the brand logo, premium French elegance" \
   --aspect-ratio 3:4 \
   --output-dir ./outputs
+```
+
+Reusable component call from another skill:
+
+```bash
+bash /absolute/path/to/ai-image-generator/scripts/generate-image.sh \
+  --provider auto \
+  --prompt "$USER_PROMPT" \
+  --output-dir "$OUTPUT_DIR" \
+  --output-prefix "$ASSET_ID"
+```
+
+Resolve size without calling an image API:
+
+```bash
+bash scripts/resolve-image-spec.sh \
+  --query "Generate a WeChat Official Account main cover about AI image models"
+```
+
+Size priority:
+
+```text
+explicit user size/aspect ratio
+matched platform/use-case spec
+provider/script default
 ```
 
 Pro prompt check:
@@ -123,11 +164,35 @@ bash scripts/generate-image.sh \
   --output-dir ./outputs
 ```
 
+Supported provider values:
+
+```text
+auto
+gpt-image2
+nano-banana
+siliconflow-qwen-image
+openai
+```
+
 Check configuration:
 
 ```bash
 bash scripts/check-config.sh
 ```
+
+## Common Size Defaults
+
+The machine-readable table is [`references/platform-image-specs.json`](./references/platform-image-specs.json).
+
+Examples:
+
+- WeChat main cover: `2.35:1`, `1800x766`; provider fallback ratio `21:9`.
+- WeChat body image: `16:9`, `1920x1080`.
+- Xiaohongshu cover/content card: `3:4`, `1080x1440`.
+- Douyin cover: `9:16`, `1080x1920`.
+- PPT cover: `16:9`, `1920x1080`.
+- Mobile wallpaper: `9:16`, `1080x1920`.
+- E-commerce main image and avatar: `1:1`.
 
 ## Dependencies
 
@@ -161,6 +226,7 @@ Current pre-publish status:
 ├── README.zh.md
 ├── LICENSE
 ├── .env.example
+├── references/
 ├── scripts/
 ├── ACCEPTANCE.md
 ├── CHANGELOG.md

@@ -1,12 +1,14 @@
 ---
 name: ai-image-generator
-description: Use this skill whenever the user wants to generate, create, edit, or restyle an AI image through a configured Nano Banana-compatible API or OpenAI GPT Image-compatible API. Direct mode sends the user's prompt directly to the model. Pro mode only checks whether the user's prompt has the basic elements needed for generation, asks for missing information, then sends the completed user-approved prompt to the model.
-version: 0.4.0
+description: Use this skill whenever the user wants to generate, create, edit, or restyle an AI image through configured image APIs such as GPT-image2, Nano Banana-compatible APIs, SiliconFlow Qwen Image, or OpenAI GPT Image-compatible APIs. Direct mode sends the user's prompt directly to the model. Pro mode only checks whether the user's prompt has the basic elements needed for generation, asks for missing information, then sends the completed user-approved prompt to the model.
+version: 0.4.1
 ---
 
 # AI Image Generator
 
-Use this skill as a simple image generation bridge.
+Use this skill as a general-purpose image generation component. Other skills
+can call it whenever they need image generation instead of re-implementing image
+provider routing, API calls, output parsing, or common platform size defaults.
 
 There are only two modes:
 
@@ -14,6 +16,9 @@ There are only two modes:
 2. **Pro mode**: check whether the user's prompt has enough basic generation information. If something important is missing, ask the user to fill it in. After the user confirms the missing information, send the completed prompt to the model.
 
 Do not rewrite, optimize, stylize, expand, or re-rank the user's prompt unless the user explicitly asks you to write final copy. Do not use a case library or prompt examples to transform the user's intent.
+
+This skill may infer image size or aspect-ratio API parameters from the user's
+stated use case. Size inference is not prompt rewriting.
 
 ## Direct Mode
 
@@ -26,6 +31,27 @@ The final prompt is the user's original input:
 ```
 
 Do not add output form, style, composition, quality, text, brand, safety, or negative prompt constraints in Direct mode. Provider parameters such as aspect ratio, image size, number of images, or input image path may still be passed as API parameters.
+
+## Size Resolution
+
+Use this priority for image size and aspect ratio:
+
+1. If the user or calling skill explicitly provides `--size` or
+   `--aspect-ratio`, use that value.
+2. If no explicit size is provided, inspect the raw user prompt for an explicit
+   size or ratio such as `1024x1024`, `16:9`, `9:16`, or `2.35:1`.
+3. If the prompt has no explicit size, match platform/use-case keywords against
+   `references/platform-image-specs.json`.
+4. If nothing matches, do not invent a size. Let the provider or script default
+   apply.
+
+The size resolver must not change the prompt text.
+
+Check size resolution without generating an image:
+
+```bash
+bash scripts/resolve-image-spec.sh --query "生成一张微信公众号头图，主题是 AI 生图模型配置"
+```
 
 ## Pro Mode
 
@@ -99,17 +125,39 @@ Generate through Nano Banana-compatible providers:
 
 ```bash
 bash scripts/generate-image.sh \
-  --provider nano-banana \
+  --provider auto \
   --prompt "<user or completed prompt>" \
   --aspect-ratio 1:1 \
   --output-dir ./outputs
 ```
 
-Generate through OpenAI GPT Image-compatible providers:
+For other skills, the standard component call is:
+
+```bash
+bash /absolute/path/to/ai-image-generator/scripts/generate-image.sh \
+  --provider auto \
+  --prompt "<raw user prompt>" \
+  --output-dir "<run output images dir>" \
+  --output-prefix "<asset id>"
+```
+
+Only pass `--size` or `--aspect-ratio` when the caller already has an explicit
+user requirement. Otherwise let `ai-image-generator` resolve known platform
+defaults.
+
+Provider choices:
+
+- `auto`: default. Try `gpt-image2`, `nano-banana`, `siliconflow-qwen-image`, then `openai`.
+- `gpt-image2`: OpenAI-compatible GPT-image2 proxy, for example Yunwu.
+- `nano-banana`: Nano Banana-compatible API.
+- `siliconflow-qwen-image`: SiliconFlow `Qwen/Qwen-Image`.
+- `openai`: generic OpenAI GPT Image-compatible API.
+
+Generate through a specific provider:
 
 ```bash
 bash scripts/generate-image.sh \
-  --provider openai \
+  --provider gpt-image2 \
   --prompt "<user or completed prompt>" \
   --size 1024x1024 \
   --output-dir ./outputs
@@ -128,13 +176,43 @@ bash scripts/generate-image.sh \
 
 ## Configuration
 
-Each user configures their own API keys and URLs in `.env`.
+Each user configures their own API keys and URLs in `.env`, `~/.ai-image-generator/.env`, or `~/.config/ai-image-generator/.env`.
+
+Default provider order:
+
+```bash
+IMAGE_PROVIDER=auto
+```
+
+GPT-image2 through an OpenAI-compatible proxy such as Yunwu:
+
+```bash
+GPT_IMAGE2_BASE_URL="https://yunwu.ai"
+GPT_IMAGE2_MODEL="gpt-image-2-all"
+GPT_IMAGE2_API_KEY="your_api_key_here"
+```
 
 Nano Banana-compatible provider:
 
 ```bash
 NANO_BANANA_API_URL="https://your-provider.example/v1beta/models/your-model:generateContent"
 NANO_BANANA_API_KEY="your_api_key_here"
+```
+
+Yunwu Nano Banana-compatible aliases:
+
+```bash
+YUNWU_NANO_BANANA_BASE_URL="https://yunwu.ai"
+YUNWU_NANO_BANANA_MODEL="gemini-3.1-flash-image-preview"
+YUNWU_NANO_BANANA_API_KEY="your_api_key_here"
+```
+
+SiliconFlow Qwen Image:
+
+```bash
+SILICONFLOW_BASE_URL="https://api.siliconflow.cn/v1/images/generations"
+SILICONFLOW_MODEL="Qwen/Qwen-Image"
+SILICONFLOW_API_KEY="your_api_key_here"
 ```
 
 OpenAI GPT Image-compatible provider:
@@ -159,6 +237,8 @@ After generation, return:
 - generated image path(s),
 - provider used,
 - aspect ratio or size,
+- `image_spec.source`, showing whether the size came from `user_explicit_cli`,
+  `user_explicit_prompt`, `matched_spec`, `not_found`, or `provider_default`,
 - prompt sent to the model,
 - raw JSON path for debugging.
 
