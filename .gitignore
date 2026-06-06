@@ -2,6 +2,7 @@
 .env.local
 .env.*.local
 outputs/
+node_modules/
 data/
 evals/
 references/
@@ -16,4 +17,5 @@ scripts/search-prompts.sh
 *_response.json
 *_images.tsv
 WORKFLOW_TEST_RESULTS.md
+publish-check-report.json
 .DS_Store
