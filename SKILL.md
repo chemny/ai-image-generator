@@ -1,7 +1,7 @@
 ---
 name: ai-image-generator
-description: Use this skill whenever the user wants to generate, create, edit, or restyle an AI image through configured image APIs such as GPT-image2, Nano Banana-compatible APIs, SiliconFlow Qwen Image, or OpenAI GPT Image-compatible APIs. Direct mode sends the user's prompt directly to the model. Pro mode only checks whether the user's prompt has the basic elements needed for generation, asks for missing information, then sends the completed user-approved prompt to the model.
-version: 0.4.1
+description: Use this skill whenever the user wants to generate, create, edit, or restyle an AI image through the agent's native image generation capability or configured image APIs such as GPT-image2, Nano Banana-compatible APIs, SiliconFlow Qwen Image, or OpenAI GPT Image-compatible APIs. Direct mode sends the user's prompt directly to the model. Pro mode only checks whether the user's prompt has the basic elements needed for generation, asks for missing information, then sends the completed user-approved prompt to the model.
+version: 0.4.2
 ---
 
 # AI Image Generator
@@ -9,6 +9,21 @@ version: 0.4.1
 Use this skill as a general-purpose image generation component. Other skills
 can call it whenever they need image generation instead of re-implementing image
 provider routing, API calls, output parsing, or common platform size defaults.
+
+## Provider Priority
+
+Use this global priority:
+
+1. Agent-native image generation, when the current agent/runtime provides a
+   built-in image generation tool and the user did not explicitly request a
+   third-party API.
+2. Script/API `--provider auto`, whose fallback order is `gpt-image2`,
+   `nano-banana`, `siliconflow-qwen-image`, then `openai`.
+3. A specific provider pinned by the user or calling skill.
+
+The bundled `scripts/generate-image.sh` cannot call agent-native tools by
+itself. It only handles configured API providers. Agent-native generation is an
+instruction for the agent using this skill.
 
 There are only two modes:
 
@@ -147,7 +162,8 @@ defaults.
 
 Provider choices:
 
-- `auto`: default. Try `gpt-image2`, `nano-banana`, `siliconflow-qwen-image`, then `openai`.
+- Agent-native image generation: default at the agent level when available.
+- `auto`: script/API default. Try `gpt-image2`, `nano-banana`, `siliconflow-qwen-image`, then `openai`.
 - `gpt-image2`: OpenAI-compatible GPT-image2 proxy, for example Yunwu.
 - `nano-banana`: Nano Banana-compatible API.
 - `siliconflow-qwen-image`: SiliconFlow `Qwen/Qwen-Image`.
@@ -178,11 +194,15 @@ bash scripts/generate-image.sh \
 
 Each user configures their own API keys and URLs in `.env`, `~/.ai-image-generator/.env`, or `~/.config/ai-image-generator/.env`.
 
-Default provider order:
+Default script/API provider order:
 
 ```bash
 IMAGE_PROVIDER=auto
 ```
+
+At the agent level, use the agent's built-in image generation capability first
+when available. Use `IMAGE_PROVIDER=auto` only when calling the bundled API
+script or when the user explicitly asks for API/provider generation.
 
 GPT-image2 through an OpenAI-compatible proxy such as Yunwu:
 

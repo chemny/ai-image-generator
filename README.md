@@ -2,7 +2,7 @@
 
 中文 | [English](./README.en.md)
 
-面向 Codex、Claude Code、OpenClaw 和其他 Agent skill 作者的通用 AI 生图组件。它把“用户想要生成图片”这类分散需求收敛成一个可复用的调用入口：原样传递用户提示词，统一处理多 provider 配置、图片尺寸推断、参考图输入、生成结果保存和 JSON 输出。
+面向 Codex、Claude Code、OpenClaw 和其他 Agent skill 作者的通用 AI 生图组件。它把“用户想要生成图片”这类分散需求收敛成一个可复用的调用入口：优先使用 Agent 自带生图能力，必要时原样传递用户提示词到配置好的 API provider，并统一处理图片尺寸推断、参考图输入、生成结果保存和 JSON 输出。
 
 它适合被独立使用，也适合被其他 skills 当作底层生图能力调用。其他 skill 不需要再各自实现 Nano Banana、GPT-image2、SiliconFlow 或 OpenAI 兼容接口，也不需要重复维护微信公众号头图、小红书配图、PPT 封面、手机壁纸等常见图片尺寸。
 
@@ -62,6 +62,8 @@ flowchart TD
 - Direct 模式默认开启。
 - 提示词原样传给模型。
 - 不自动改写、扩写、优化、翻译或仿写 prompt。
+- 当前 Agent/runtime 有自带生图能力时，默认优先使用自带能力。
+- 使用脚本或 API fallback 时，`auto` 顺序是 `gpt-image2 -> nano-banana -> siliconflow-qwen-image -> openai`。
 - 尺寸解析只补 API 参数，不改变提示词内容。
 
 ### 2. 给其他 skills 调用
@@ -103,7 +105,7 @@ bash scripts/resolve-image-spec.sh \
 
 - Direct 模式：用户说什么，就把什么交给模型。
 - Pro 模式：只检查提示词基础信息是否缺失，不做创意改写。
-- 多 provider：支持 `auto`、`gpt-image2`、`nano-banana`、`siliconflow-qwen-image`、`openai`。
+- Provider 优先级：Agent 自带生图能力优先；脚本/API `auto` 再按 `gpt-image2 -> nano-banana -> siliconflow-qwen-image -> openai`。
 - 参考图输入：支持 image-to-image 或编辑类生成。
 - 尺寸解析：根据显式尺寸、平台关键词或 provider 默认值决定参数。
 - 统一输出：返回稳定 JSON，包含图片路径、provider、原始响应和尺寸来源。
@@ -138,10 +140,18 @@ cp .env.example .env
 
 ## 配置示例
 
-默认 provider 顺序：
+脚本/API 默认 provider 顺序：
 
 ```bash
 IMAGE_PROVIDER="auto"
+```
+
+Agent 层默认顺序：
+
+```text
+Agent 自带生图能力
+> 脚本/API auto
+> 用户指定 provider
 ```
 
 GPT-image2 兼容接口：
@@ -180,6 +190,8 @@ OPENAI_IMAGE_EDIT_URL="https://api.openai.com/v1/images/edits"
 
 - 不要把真实 `.env`、API key、provider key、cookie 或私有接口地址提交到仓库。
 - Direct 模式不改写 prompt。
+- 当前 Agent 有自带生图能力且用户没有指定第三方 provider 时，优先用 Agent 自带能力。
+- `scripts/generate-image.sh` 不能直接调用 Agent 自带工具；它只负责 API provider fallback。
 - 用户显式指定尺寸时，永远优先使用用户指定值。
 - 用户没有指定尺寸时，才按平台关键词查规格表。
 - 规格表匹配不到时，不强行猜测尺寸，交给 provider 或脚本默认值。

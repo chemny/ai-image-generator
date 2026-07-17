@@ -2,7 +2,7 @@
 
 [中文](./README.md) | English
 
-A reusable AI image generation component for Codex, Claude Code, OpenClaw, and other agent skill authors. It turns scattered "generate an image" requests into one stable entry point: pass the user's prompt unchanged, resolve provider configuration, infer common platform sizes, accept reference images, save outputs, and return a stable JSON result.
+A reusable AI image generation component for Codex, Claude Code, OpenClaw, and other agent skill authors. It turns scattered "generate an image" requests into one stable entry point: prefer the agent's native image generation capability, or pass the user's prompt unchanged to configured API providers when needed, while resolving common platform sizes, accepting reference images, saving outputs, and returning a stable JSON result.
 
 It can be used directly by users, or called by other skills as the shared image generation layer. Upstream skills no longer need to re-implement Nano Banana, GPT-image2, SiliconFlow, or OpenAI-compatible image APIs, and they do not need to duplicate common size rules for WeChat covers, Xiaohongshu cards, PPT covers, mobile wallpapers, and similar assets.
 
@@ -62,6 +62,8 @@ Default rules:
 - Direct mode is the default.
 - The prompt is sent to the model unchanged.
 - The skill does not rewrite, expand, optimize, translate, or imitate prompts.
+- When the current agent/runtime provides native image generation, use it first by default.
+- When using the script or API fallback, `auto` order is `gpt-image2 -> nano-banana -> siliconflow-qwen-image -> openai`.
 - Size resolution only fills API parameters. It does not modify prompt text.
 
 ### 2. Component Call From Other Skills
@@ -103,7 +105,7 @@ Example result:
 
 - Direct mode: send the user's prompt to the model unchanged.
 - Pro mode: check only for missing basic prompt information; no creative rewriting.
-- Multiple providers: `auto`, `gpt-image2`, `nano-banana`, `siliconflow-qwen-image`, and `openai`.
+- Provider priority: agent-native image generation first; script/API `auto` then tries `gpt-image2 -> nano-banana -> siliconflow-qwen-image -> openai`.
 - Reference images: supports image-to-image or edit-style generation.
 - Size resolver: chooses parameters from explicit user size, platform keywords, or provider defaults.
 - Stable JSON output: image paths, provider, raw response path, and size source.
@@ -138,10 +140,18 @@ cp .env.example .env
 
 ## Configuration Examples
 
-Default provider order:
+Default script/API provider order:
 
 ```bash
 IMAGE_PROVIDER="auto"
+```
+
+Agent-level default order:
+
+```text
+agent-native image generation
+> script/API auto
+> user-pinned provider
 ```
 
 GPT-image2-compatible API:
@@ -180,6 +190,8 @@ OPENAI_IMAGE_EDIT_URL="https://api.openai.com/v1/images/edits"
 
 - Do not commit real `.env` files, API keys, provider keys, cookies, or private API URLs.
 - Direct mode does not rewrite prompts.
+- When the current agent provides native image generation and the user did not request a third-party provider, use the agent-native capability first.
+- `scripts/generate-image.sh` cannot call agent-native tools directly; it only handles API provider fallback.
 - Explicit user-provided size always wins.
 - If the user does not specify size, match known platform/use-case keywords.
 - If no spec matches, do not invent a size. Let the provider or script default apply.

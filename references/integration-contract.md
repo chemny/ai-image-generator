@@ -71,6 +71,19 @@ The machine-readable spec table is `references/platform-image-specs.json`.
 
 ## Provider Contract
 
+Global priority:
+
+```text
+agent-native image generation
+> script/API auto
+> user-pinned provider
+```
+
+Use the agent's native image generation capability first when the runtime
+provides one and the user did not explicitly request a third-party API. The
+bundled `scripts/generate-image.sh` cannot call agent-native tools by itself; it
+only handles API providers.
+
 Supported provider values:
 
 ```text
@@ -81,7 +94,7 @@ siliconflow-qwen-image
 openai
 ```
 
-Default `auto` order:
+Default script/API `auto` order:
 
 ```text
 gpt-image2 -> nano-banana -> siliconflow-qwen-image -> openai
